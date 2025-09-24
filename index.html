@@ -12,7 +12,8 @@
 <meta name="apple-mobile-web-app-title" content="IFR Sheet">
 <style>
   :root { --fg:#0a0a0a; --muted:#555; --line:#d9d9d9; --accent:#0a3d62; --bg:#fff; --field:#f8f8f8; }
-  *{box-sizing:border-box} body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg);margin:0;padding:24px}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg);margin:0;padding:24px}
   header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin-bottom:8px}
   h1{text-align:center;font-weight:700;font-size:16px;letter-spacing:.08em;margin:0}
   .hdr-fields{display:flex;gap:16px;justify-content:space-between;align-items:center}
@@ -39,7 +40,30 @@
   .toolbar{display:flex;gap:8px;justify-content:flex-end;margin:10px 0 16px;flex-wrap:wrap}
   button{appearance:none;border:1px solid var(--line);background:#fafafa;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px}
   button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-  @media print{body{padding:0.5in}.toolbar{display:none}input,textarea,select{border-color:#bfbfbf}.card{page-break-inside:avoid}}
+
+  /* ------- LEGACY PDF LAYOUT FOR PRINT ------- */
+  /* Switch with body.legacy-print (also applied during @media print) */
+  body.legacy-print, @media print {
+    padding: 0.5in;
+    background: #fff;
+  }
+  body.legacy-print .toolbar, @media print {.toolbar{display:none}}
+  body.legacy-print input, body.legacy-print textarea, @media print { input,textarea{border-color:#bfbfbf; background:transparent} }
+  body.legacy-print .card, @media print { .card{page-break-inside:avoid;border-color:#bfbfbf;border-radius:4px} }
+  body.legacy-print h1{font-size:14px;letter-spacing:.06em}
+
+  /* Reflow for one-page PDF: tighter top grids, dotted leader fields, wider route area */
+  body.legacy-print .row.top { grid-template-columns: 1.1fr 0.9fr; gap: 12px; }
+  body.legacy-print .row.bottom { grid-template-columns: 1fr 1fr; gap: 12px; }
+  /* Dotted leaders for performance lines */
+  .leader input { border: none; border-bottom: 1px dotted #888; border-radius:0; padding: 2px 0; background: transparent; }
+  .leader label { color:#000; }
+
+  /* Tighter spacing in legacy mode */
+  body.legacy-print .card h2 { margin-bottom: 4px; }
+  body.legacy-print th, body.legacy-print td { padding: 4px 6px; font-size: 11px; }
+  body.legacy-print label { font-size: 11px; }
+
 </style>
 </head>
 <body>
@@ -60,11 +84,13 @@
     <button onclick="saveData()">Save</button>
     <button onclick="loadData()">Load</button>
     <button onclick="clearData()">Clear</button>
-    <button onclick="window.print()">Print</button>
-    <button class="primary" onclick="installPrompt()">Add to Home Screen</button>
+    <button onclick="window.print()">Print (Browser)</button>
+    <button class="primary" onclick="printLegacy()">Print (Airline PDF Layout)</button>
+    <button onclick="installPrompt()">Add to Home Screen</button>
   </div>
 
-  <div class="row">
+  <!-- TOP HALF -->
+  <div class="row top">
     <section class="card section" id="wb">
       <h2>WEIGHT &amp; BALANCE</h2>
       <table>
@@ -101,26 +127,27 @@
     </section>
   </div>
 
-  <div class="row" style="margin-top:16px;">
+  <!-- BOTTOM HALF -->
+  <div class="row bottom" style="margin-top:16px;">
     <section class="card section" id="left">
       <div class="cols-2">
         <div>
           <h2>SPEEDS</h2>
-          <div class="cols-2">
+          <div class="cols-2 leader">
             <div><label>vR</label><input id="vr"></div>
             <div><label>vAPP</label><input id="vapp"></div>
           </div>
           <div>
             <label>vREF</label>
             <div class="muted">= VS0 (KCAS) × √(WT‑LDG / WT‑GROSS)</div>
-            <div class="cols-3" style="margin-top:6px;">
+            <div class="cols-3 leader" style="margin-top:6px;">
               <div><label>VS0 (KCAS)</label><input id="vs0" type="number" step="0.1"></div>
               <div><label>WT‑LDG</label><input id="wt_ldg" type="number" step="1"></div>
               <div><label>WT‑GROSS</label><input id="wt_gross" type="number" step="1"></div>
             </div>
-            <div style="margin-top:6px;"><label>vREF (calc)</label><input id="vref_calc" readonly></div>
+            <div class="leader" style="margin-top:6px;"><label>vREF (calc)</label><input id="vref_calc" readonly></div>
           </div>
-          <div class="cols-3" style="margin-top:8px;">
+          <div class="cols-3 leader" style="margin-top:8px;">
             <div><label>VY</label><input id="vy"></div>
             <div><label>VX</label><input id="vx"></div>
             <div><label>VMC</label><input id="vmc"></div>
@@ -128,28 +155,28 @@
         </div>
         <div>
           <h2>OEI CLIMB PERFORMANCE</h2>
-          <div class="cols-2">
+          <div class="cols-2 leader">
             <div><label>T/O vYSE</label><input id="to_vyse"></div>
             <div><label>ROC</label><input id="to_roc"></div>
           </div>
-          <div class="cols-2">
+          <div class="cols-2 leader">
             <div><label>CRZ vYSE</label><input id="crz_vyse"></div>
             <div><label>ROC</label><input id="crz_roc"></div>
           </div>
           <h2 style="margin-top:10px;">TAKEOFF SAFETY</h2>
-          <div><label>Accelerate‑Stop Distance</label><input id="asd"></div>
+          <div class="leader"><label>Accelerate‑Stop Distance</label><input id="asd"></div>
         </div>
       </div>
     </section>
 
     <section class="card section" id="right">
       <h2>CRUISE (CRZ)</h2>
-      <div class="cols-3">
+      <div class="cols-3 leader">
         <div><label>%PWR</label><input id="pwr"></div>
         <div><label>MAP</label><input id="map"></div>
         <div><label>RPM</label><input id="rpm"></div>
       </div>
-      <div class="cols-4">
+      <div class="cols-4 leader">
         <div><label>KTAS</label><input id="ktas"></div>
         <div><label>KIAS</label><input id="kias"></div>
         <div><label>GS</label><input id="gs"></div>
@@ -157,19 +184,19 @@
       </div>
 
       <h2>FUEL &amp; ENDURANCE</h2>
-      <div class="cols-2">
+      <div class="cols-2 leader">
         <div><label>Fuel On Board</label><input id="fob"></div>
         <div><label>Planned Burn [+APCH and Missed APCH]:</label><input id="planned_burn"></div>
       </div>
-      <div class="cols-3">
+      <div class="cols-3 leader">
         <div><label>Contingency Fuel</label><input id="cont_fuel"></div>
         <div><label>Fuel to Alternate</label><input id="alt_fuel"></div>
         <div><label>Reserve Fuel</label><input id="res_fuel"></div>
       </div>
-      <div><label>Total Fuel Required</label><input id="total_fuel"></div>
+      <div class="leader"><label>Total Fuel Required</label><input id="total_fuel"></div>
 
       <h2>TIME</h2>
-      <div class="cols-3">
+      <div class="cols-3 leader">
         <div><label>ETE</label><input id="ete"></div>
         <div><label>ETA</label><input id="eta"></div>
         <div><label>ETE (Alt)</label><input id="ete_alt"></div>
@@ -208,7 +235,6 @@ function solveRow(tr){
   const hasA = !isNaN(a);
   const hasM = !isNaN(m);
 
-  // Decide which to solve
   if (hasW && hasA && !hasM) {
     mEl.value = (w * a).toFixed(2);
   } else if (hasW && hasM && !hasA && w !== 0) {
@@ -217,7 +243,6 @@ function solveRow(tr){
     wEl.value = (m / a).toFixed(1);
   }
 }
-
 function attachWBHandlers(){
   document.querySelectorAll('#wb tbody tr').forEach(tr=>{
     ['.w','.a','.m'].forEach(sel=>{
@@ -242,10 +267,19 @@ function calcVref(){
 // Local Storage
 const LS_KEY='ifr_perf_sheet_v1';
 function saveData(){const data={};document.querySelectorAll('input,textarea').forEach(el=>data[el.id]=el.value);localStorage.setItem(LS_KEY,JSON.stringify(data));alert('Saved.');}
-function loadData(){const raw=localStorage.getItem(LS_KEY);if(!raw){alert('No saved data.');return;}const data=JSON.parse(raw);Object.entries(data).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});calcVref();}
+function loadData(){const raw=localStorage.getItem(LS_KEY);if(!raw){alert('No saved data.');return;}const data=JSON.parse(raw);Object.entries(data).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});calcVref(); attachWBHandlers();}
 function clearData(){if(confirm('Clear all fields?')){document.querySelectorAll('input,textarea').forEach(el=>el.value='');localStorage.removeItem(LS_KEY);}}
 
-calcVref();
+// Legacy print toggle
+function printLegacy(){
+  document.body.classList.add('legacy-print');
+  // Allow layout to settle, then invoke print
+  setTimeout(()=>{
+    window.print();
+    // Remove class after print (some browsers fire afterprint event)
+    setTimeout(()=>document.body.classList.remove('legacy-print'), 500);
+  }, 100);
+}
 </script>
 </body>
 </html>
