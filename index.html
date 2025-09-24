@@ -70,18 +70,18 @@
       <table>
         <thead><tr><th>Item</th><th>Weight</th><th>Arm</th><th>Moment</th></tr></thead>
         <tbody>
-          <tr><td>B.E.W</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input class="m" readonly /></td></tr>
-          <tr><td>PILOTS</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input class="m" readonly /></td></tr>
-          <tr><td>REAR PAX</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input class="m" readonly /></td></tr>
-          <tr><td>AFT CARGO</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input class="m" readonly /></td></tr>
-          <tr><td>ZFW</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input class="m" readonly /></td></tr>
-          <tr><td>FUEL</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input class="m" readonly /></td></tr>
-          <tr><td>T/O</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input class="m" readonly /></td></tr>
-          <tr><td>Used</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input class="m" readonly /></td></tr>
-          <tr><td>LDG</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input class="m" readonly /></td></tr>
+          <tr><td>B.E.W</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input type="number" step="0.01" class="m" /></td></tr>
+          <tr><td>PILOTS</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input type="number" step="0.01" class="m" /></td></tr>
+          <tr><td>REAR PAX</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input type="number" step="0.01" class="m" /></td></tr>
+          <tr><td>AFT CARGO</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input type="number" step="0.01" class="m" /></td></tr>
+          <tr><td>ZFW</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input type="number" step="0.01" class="m" /></td></tr>
+          <tr><td>FUEL</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input type="number" step="0.01" class="m" /></td></tr>
+          <tr><td>T/O</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input type="number" step="0.01" class="m" /></td></tr>
+          <tr><td>Used</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input type="number" step="0.01" class="m" /></td></tr>
+          <tr><td>LDG</td><td><input type="number" step="0.1" class="w" /></td><td><input type="number" step="0.001" class="a" /></td><td class="thin"><input type="number" step="0.01" class="m" /></td></tr>
         </tbody>
       </table>
-      <div class="muted">Moment auto-calculates as Weight × Arm.</div>
+      <div class="muted">Any two of Weight, Arm, Moment will auto-solve the third (Moment = Weight × Arm).</div>
     </section>
 
     <section class="card section" id="ap">
@@ -185,23 +185,51 @@
   </section>
 
 <script>
+// Service worker registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
 }
+
+// Install prompt (Android/desktop). iOS: Share → Add to Home Screen
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
 function installPrompt(){ if (deferredPrompt) deferredPrompt.prompt(); else alert('On iPhone/iPad: Share → Add to Home Screen.'); }
 
-function calcMoments(){
+// W&B: any-two-solve-third per row
+function solveRow(tr){
+  const wEl = tr.querySelector('.w');
+  const aEl = tr.querySelector('.a');
+  const mEl = tr.querySelector('.m');
+  const w = parseFloat(wEl.value);
+  const a = parseFloat(aEl.value);
+  const m = parseFloat(mEl.value);
+
+  const hasW = !isNaN(w);
+  const hasA = !isNaN(a);
+  const hasM = !isNaN(m);
+
+  // Decide which to solve
+  if (hasW && hasA && !hasM) {
+    mEl.value = (w * a).toFixed(2);
+  } else if (hasW && hasM && !hasA && w !== 0) {
+    aEl.value = (m / w).toFixed(3);
+  } else if (hasA && hasM && !hasW && a !== 0) {
+    wEl.value = (m / a).toFixed(1);
+  }
+}
+
+function attachWBHandlers(){
   document.querySelectorAll('#wb tbody tr').forEach(tr=>{
-    const w=parseFloat(tr.querySelector('.w')?.value||0);
-    const a=parseFloat(tr.querySelector('.a')?.value||0);
-    const m=(w&&a)?(w*a).toFixed(2):'';
-    const mEl=tr.querySelector('.m'); if(mEl) mEl.value=m;
+    ['.w','.a','.m'].forEach(sel=>{
+      const el = tr.querySelector(sel);
+      if (!el) return;
+      el.addEventListener('input', ()=>solveRow(tr));
+    });
   });
 }
-document.querySelectorAll('#wb .w,#wb .a').forEach(el=>el.addEventListener('input',calcMoments));
+attachWBHandlers();
 
+// vREF calc
 function calcVref(){
   const vs0=parseFloat(document.getElementById('vs0').value||0);
   const wt_ldg=parseFloat(document.getElementById('wt_ldg').value||0);
@@ -211,12 +239,13 @@ function calcVref(){
 }
 ['vs0','wt_ldg','wt_gross'].forEach(id=>document.getElementById(id).addEventListener('input',calcVref));
 
+// Local Storage
 const LS_KEY='ifr_perf_sheet_v1';
 function saveData(){const data={};document.querySelectorAll('input,textarea').forEach(el=>data[el.id]=el.value);localStorage.setItem(LS_KEY,JSON.stringify(data));alert('Saved.');}
-function loadData(){const raw=localStorage.getItem(LS_KEY);if(!raw){alert('No saved data.');return;}const data=JSON.parse(raw);Object.entries(data).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});calcMoments();calcVref();}
+function loadData(){const raw=localStorage.getItem(LS_KEY);if(!raw){alert('No saved data.');return;}const data=JSON.parse(raw);Object.entries(data).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});calcVref();}
 function clearData(){if(confirm('Clear all fields?')){document.querySelectorAll('input,textarea').forEach(el=>el.value='');localStorage.removeItem(LS_KEY);}}
 
-calcMoments(); calcVref();
+calcVref();
 </script>
 </body>
 </html>
